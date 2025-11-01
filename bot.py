@@ -11,9 +11,11 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiohttp import web
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
 LOG_CHANNEL_ID = int(os.getenv("LOG_CHANNEL_ID", "-1001234567890"))
+PORT = int(os.getenv("PORT", 8080))
 
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher(storage=MemoryStorage())
@@ -116,10 +118,29 @@ async def stats_command(message: types.Message):
     total_links = sum(len(data["links"]) for data in user_data.values())
     await message.answer(f"📊 <b>Статистика бота:</b>\n\n👥 Всего пользователей: {total_users}\n✅ Завершили участие: {completed_users}\n🔗 Всего ссылок собрано: {total_links}")
 
+# HTTP сервер для Render
+async def health_check(request):
+    return web.Response(text="Bot is running!")
+
+async def start_webhook():
+    app = web.Application()
+    app.router.add_get('/', health_check)
+    app.router.add_get('/health', health_check)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', PORT)
+    await site.start()
+    print(f"🌐 HTTP server started on port {PORT}")
+
 async def main():
     print("🤖 Бот запущен!")
     print(f"📝 Логи отправляются в канал: {LOG_CHANNEL_ID}")
-    await dp.start_polling(bot)
+
+    # Запускаем HTTP сервер и бота параллельно
+    await asyncio.gather(
+        start_webhook(),
+        dp.start_polling(bot)
+    )
 
 if __name__ == "__main__":
     asyncio.run(main())
