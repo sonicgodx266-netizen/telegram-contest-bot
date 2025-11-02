@@ -61,10 +61,25 @@ def get_submit_button():
 @dp.message(Command("start"))
 async def start_command(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
+
+    # Если пользователь уже участвует, показываем статистику и возможность добавить ещё
     if user_id in user_data and user_data[user_id].get("completed"):
-        await message.answer("✅ Ты уже участвуешь в конкурсе!\n\nРезультаты будут объявлены <b>25 ноября 2025</b>.")
+        count = len(user_data[user_id]["links"])
+        await message.answer(
+            f"✅ Ты уже участвуешь в конкурсе!\n\n"
+            f"📊 Твоих приглашённых: <b>{count} человек</b>\n\n"
+            f"🗓 Результаты будут объявлены <b>9 ноября 2025</b>.\n\n"
+            f"💡 Хочешь добавить ещё ссылки? Просто пришли их мне!"
+        )
+        # Разрешаем добавлять новые ссылки
+        user_data[user_id]["completed"] = False
+        await state.set_state(Form.waiting_for_links)
         return
-    user_data[user_id] = {"links": [], "completed": False}
+
+    # Новый пользователь
+    if user_id not in user_data:
+        user_data[user_id] = {"links": [], "completed": False}
+
     await state.set_state(Form.waiting_for_links)
     await message.answer("👋 <b>Привет!</b>\n\nЧтобы участвовать в конкурсе, пригласи <b>минимум 3 человека</b>.\n\n📝 Пришли мне ссылки на их профили (по одной в сообщении):\n• <code>t.me/username</code>\n• <code>https://t.me/username</code>\n\nКогда пришлёшь 3+ уникальные ссылки — появится кнопка для завершения.")
 
@@ -108,7 +123,7 @@ async def submit_links(callback: types.CallbackQuery, state: FSMContext):
     except Exception as e:
         print(f"❌ Ошибка отправки финального сообщения: {e}")
     await state.clear()
-    await callback.message.edit_text(f"✅ <b>Поздравляем!</b>\n\nТвоя заявка принята! Ты пригласил <b>{len(user_data[user_id]['links'])} человек</b>.\n\n🗓 Результаты конкурса: <b>25 ноября 2025</b>\n\nУдачи! 🍀")
+    await callback.message.edit_text(f"✅ <b>Поздравляем!</b>\n\nТвоя заявка принята! Ты пригласил <b>{len(user_data[user_id]['links'])} человек</b>.\n\n🗓 Результаты конкурса: <b>9 ноября 2025</b>\n\n💡 Хочешь добавить ещё ссылок? Напиши /start\n\nУдачи! 🍀")
     await callback.answer("✅ Заявка принята!", show_alert=True)
 
 @dp.message(Command("stats"))
